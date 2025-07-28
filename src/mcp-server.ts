@@ -16,7 +16,7 @@ const SCOPES = [
 ];
 
 export class GoogleServicesMCPServer {
-  private oauth2Client: OAuth2Client;
+  private oauth2Client!: OAuth2Client;
   private drive: any;
   private sheets: any;
   private slides: any;
@@ -387,14 +387,12 @@ export class GoogleServicesMCPServer {
         default:
           throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       throw new McpError(ErrorCode.InternalError, `Error executing ${name}: ${error.message}`);
     }
   }
 
-  // Include all the Google API methods from your original server...
-  // [I'll include just a few key ones for brevity, but you should include all]
-  
+  // Google Drive Methods
   private async createFolder(args: any) {
     const fileMetadata = {
       name: args.name,
@@ -438,6 +436,507 @@ export class GoogleServicesMCPServer {
     };
   }
 
-  // ... [Include all other methods from your original google_mcp_server.ts file]
-  // [Copy all the remaining methods: moveFile, deleteFile, createSpreadsheet, etc.]
+  private async moveFile(args: any) {
+    // Get current parents
+    const file = await this.drive.files.get({
+      fileId: args.fileId,
+      fields: 'parents',
+    });
+
+    const previousParents = file.data.parents.join(',');
+
+    const response = await this.drive.files.update({
+      fileId: args.fileId,
+      addParents: args.newParentId,
+      removeParents: previousParents,
+      fields: 'id, parents',
+    });
+
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          success: true,
+          fileId: response.data.id,
+          newParents: response.data.parents,
+        }, null, 2),
+      }],
+    };
+  }
+
+  private async deleteFile(args: any) {
+    await this.drive.files.delete({
+      fileId: args.fileId,
+    });
+
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          success: true,
+          message: `File ${args.fileId} deleted successfully`,
+        }, null, 2),
+      }],
+    };
+  }
+
+  // Google Sheets Methods
+  private async createSpreadsheet(args: any) {
+    const resource = {
+      properties: {
+        title: args.title,
+      },
+      sheets: args.sheetNames ? args.sheetNames.map((name: string) => ({
+        properties: { title: name }
+      })) : undefined,
+    };
+
+    const response = await this.sheets.spreadsheets.create({
+      resource,
+      fields: 'spreadsheetId, spreadsheetUrl, properties',
+    });
+
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          spreadsheetId: response.data.spreadsheetId,
+          spreadsheetUrl: response.data.spreadsheetUrl,
+          title: response.data.properties.title,
+        }, null, 2),
+      }],
+    };
+  }
+
+  private async readSheet(args: any) {
+    const response = await this.sheets.spreadsheets.values.get({
+      spreadsheetId: args.spreadsheetId,
+      range: args.range,
+    });
+
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          range: response.data.range,
+          values: response.data.values || [],
+        }, null, 2),
+      }],
+    };
+  }
+
+  private async writeSheet(args: any) {
+    const response = await this.sheets.spreadsheets.values.update({
+      spreadsheetId: args.spreadsheetId,
+      range: args.range,
+      valueInputOption: args.valueInputOption || 'USER_ENTERED',
+      resource: {
+        values: args.values,
+      },
+    });
+
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          updatedCells: response.data.updatedCells,
+          updatedColumns: response.data.updatedColumns,
+          updatedRows: response.data.updatedRows,
+        }, null, 2),
+      }],
+    };
+  }
+
+  private async appendSheet(args: any) {
+    const response = await this.sheets.spreadsheets.values.append({
+      spreadsheetId: args.spreadsheetId,
+      range: args.range,
+      valueInputOption: args.valueInputOption || 'USER_ENTERED',
+      resource: {
+        values: args.values,
+      },
+    });
+
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          updatedCells: response.data.updates.updatedCells,
+          updatedColumns: response.data.updates.updatedColumns,
+          updatedRows: response.data.updates.updatedRows,
+        }, null, 2),
+      }],
+    };
+  }
+
+  // Google Slides Methods
+  private async createPresentation(args: any) {
+    const response = await this.slides.presentations.create({
+      resource: {
+        title: args.title,
+      },
+    });
+
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          presentationId: response.data.presentationId,
+          title: response.data.title,
+          slides: response.data.slides?.map((slide: any) => ({
+            slideId: slide.objectId,
+            layoutId: slide.slideProperties?.layoutObjectId,
+          })),
+        }, null, 2),
+      }],
+    };
+  }
+
+  private async addSlide(args: any) {
+    const requests = [{
+      createSlide: {
+        objectId: `slide_${Date.now()}`,
+        slideLayoutReference: args.layoutId ? {
+          layoutId: args.layoutId,
+        } : undefined,
+      },
+    }];
+
+    const response = await this.slides.presentations.batchUpdate({
+      presentationId: args.presentationId,
+      resource: { requests },
+    });
+
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          slideId: response.data.replies[0].createSlide.objectId,
+        }, null, 2),
+      }],
+    };
+  }
+
+  private async addTextToSlide(args: any) {
+    const textBoxId = `textbox_${Date.now()}`;
+    
+    const requests = [
+      {
+        createShape: {
+          objectId: textBoxId,
+          shapeType: 'TEXT_BOX',
+          elementProperties: {
+            pageObjectId: args.slideId,
+            size: {
+              width: { magnitude: args.width || 300, unit: 'PT' },
+              height: { magnitude: args.height || 50, unit: 'PT' },
+            },
+            transform: {
+              scaleX: 1,
+              scaleY: 1,
+              translateX: args.x || 50,
+              translateY: args.y || 50,
+              unit: 'PT',
+            },
+          },
+        },
+      },
+      {
+        insertText: {
+          objectId: textBoxId,
+          text: args.text,
+        },
+      },
+    ];
+
+    const response = await this.slides.presentations.batchUpdate({
+      presentationId: args.presentationId,
+      resource: { requests },
+    });
+
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          textBoxId,
+          success: true,
+        }, null, 2),
+      }],
+    };
+  }
+
+  private async addImageToSlide(args: any) {
+    const imageId = `image_${Date.now()}`;
+    
+    const requests = [{
+      createImage: {
+        objectId: imageId,
+        url: args.imageUrl,
+        elementProperties: {
+          pageObjectId: args.slideId,
+          size: {
+            width: { magnitude: args.width || 200, unit: 'PT' },
+            height: { magnitude: args.height || 200, unit: 'PT' },
+          },
+          transform: {
+            scaleX: 1,
+            scaleY: 1,
+            translateX: args.x || 100,
+            translateY: args.y || 100,
+            unit: 'PT',
+          },
+        },
+      },
+    }];
+
+    const response = await this.slides.presentations.batchUpdate({
+      presentationId: args.presentationId,
+      resource: { requests },
+    });
+
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          imageId,
+          success: true,
+        }, null, 2),
+      }],
+    };
+  }
+
+  // Google Docs Methods
+  private async createDocument(args: any) {
+    const response = await this.docs.documents.create({
+      resource: {
+        title: args.title,
+      },
+    });
+
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          documentId: response.data.documentId,
+          title: response.data.title,
+          revisionId: response.data.revisionId,
+        }, null, 2),
+      }],
+    };
+  }
+
+  private async readDocument(args: any) {
+    const response = await this.docs.documents.get({
+      documentId: args.documentId,
+    });
+
+    // Extract text content from the document
+    let textContent = '';
+    if (response.data.body && response.data.body.content) {
+      for (const element of response.data.body.content) {
+        if (element.paragraph) {
+          for (const textElement of element.paragraph.elements || []) {
+            if (textElement.textRun && textElement.textRun.content) {
+              textContent += textElement.textRun.content;
+            }
+          }
+        }
+      }
+    }
+
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          documentId: response.data.documentId,
+          title: response.data.title,
+          textContent,
+          revisionId: response.data.revisionId,
+        }, null, 2),
+      }],
+    };
+  }
+
+  private async writeDocument(args: any) {
+    const requests = [{
+      insertText: {
+        location: {
+          index: args.index || 1,
+        },
+        text: args.text,
+      },
+    }];
+
+    const response = await this.docs.documents.batchUpdate({
+      documentId: args.documentId,
+      resource: { requests },
+    });
+
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          success: true,
+          revisionId: response.data.documentId,
+        }, null, 2),
+      }],
+    };
+  }
+
+  private async replaceTextInDocument(args: any) {
+    const requests = [{
+      replaceAllText: {
+        containsText: {
+          text: args.searchText,
+          matchCase: false,
+        },
+        replaceText: args.replaceText,
+      },
+    }];
+
+    const response = await this.docs.documents.batchUpdate({
+      documentId: args.documentId,
+      resource: { requests },
+    });
+
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          success: true,
+          replacements: response.data.replies[0]?.replaceAllText?.occurrencesChanged || 0,
+        }, null, 2),
+      }],
+    };
+  }
+
+  // Google Forms Methods
+  private async createForm(args: any) {
+    const response = await this.forms.forms.create({
+      resource: {
+        info: {
+          title: args.title,
+          description: args.description,
+        },
+      },
+    });
+
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          formId: response.data.formId,
+          title: response.data.info?.title,
+          responderUri: response.data.responderUri,
+        }, null, 2),
+      }],
+    };
+  }
+
+  private async addQuestionToForm(args: any) {
+    const questionItem: any = {
+      title: args.title,
+      questionItem: {
+        question: {
+          required: args.required || false,
+        },
+      },
+    };
+
+    // Set question type and options
+    switch (args.questionType) {
+      case 'MULTIPLE_CHOICE':
+        questionItem.questionItem.question.choiceQuestion = {
+          type: 'RADIO',
+          options: args.options?.map((option: string) => ({ value: option })) || [],
+        };
+        break;
+      case 'CHECKBOX':
+        questionItem.questionItem.question.choiceQuestion = {
+          type: 'CHECKBOX',
+          options: args.options?.map((option: string) => ({ value: option })) || [],
+        };
+        break;
+      case 'TEXT':
+        questionItem.questionItem.question.textQuestion = {};
+        break;
+      case 'PARAGRAPH_TEXT':
+        questionItem.questionItem.question.textQuestion = {
+          paragraph: true,
+        };
+        break;
+      case 'LINEAR_SCALE':
+        questionItem.questionItem.question.scaleQuestion = {
+          low: 1,
+          high: 5,
+        };
+        break;
+      case 'DATE':
+        questionItem.questionItem.question.dateQuestion = {};
+        break;
+      case 'TIME':
+        questionItem.questionItem.question.timeQuestion = {};
+        break;
+    }
+
+    const response = await this.forms.forms.batchUpdate({
+      formId: args.formId,
+      resource: {
+        requests: [{
+          createItem: {
+            item: questionItem,
+            location: { index: 0 },
+          },
+        }],
+      },
+    });
+
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          success: true,
+          itemId: response.data.replies[0]?.createItem?.itemId,
+        }, null, 2),
+      }],
+    };
+  }
+
+  private async getFormResponses(args: any) {
+    const response = await this.forms.forms.responses.list({
+      formId: args.formId,
+    });
+
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          responses: response.data.responses || [],
+          totalResponses: response.data.responses?.length || 0,
+        }, null, 2),
+      }],
+    };
+  }
+
+  private async getForm(args: any) {
+    const response = await this.forms.forms.get({
+      formId: args.formId,
+    });
+
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          formId: response.data.formId,
+          info: response.data.info,
+          items: response.data.items?.map((item: any) => ({
+            itemId: item.itemId,
+            title: item.title,
+            questionType: Object.keys(item.questionItem?.question || {})[0],
+          })) || [],
+          responderUri: response.data.responderUri,
+        }, null, 2),
+      }],
+    };
+  }
 }

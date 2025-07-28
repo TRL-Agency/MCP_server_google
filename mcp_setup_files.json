@@ -1,0 +1,164 @@
+// package.json
+{
+  "name": "google-services-mcp-server",
+  "version": "0.1.0",
+  "description": "MCP Server for Google Drive, Sheets, Slides, Docs, and Forms",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc && node dist/index.js",
+    "setup-auth": "node dist/setup-auth.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.4.0",
+    "googleapis": "^144.0.0",
+    "google-auth-library": "^9.14.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}
+
+// tsconfig.json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
+
+// .env.example
+GOOGLE_CLIENT_ID=your_google_client_id_here
+GOOGLE_CLIENT_SECRET=your_google_client_secret_here
+GOOGLE_REDIRECT_URI=http://localhost:8080/callback
+GOOGLE_ACCESS_TOKEN=your_access_token_here
+GOOGLE_REFRESH_TOKEN=your_refresh_token_here
+
+// README.md for setup instructions
+# Google Services MCP Server
+
+This MCP server provides integration with Google Drive, Sheets, Slides, Docs, and Forms APIs for use with AgenticFlow and Claude.
+
+## Setup Instructions
+
+### 1. Install Dependencies
+```bash
+npm install
+```
+
+### 2. Google Cloud Console Setup
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project or select existing one
+3. Enable the following APIs:
+   - Google Drive API
+   - Google Sheets API
+   - Google Slides API
+   - Google Docs API
+   - Google Forms API
+
+4. Create credentials (OAuth 2.0 Client ID):
+   - Go to "Credentials" → "Create Credentials" → "OAuth 2.0 Client ID"
+   - Application type: "Desktop application"
+   - Download the JSON file
+
+### 3. Environment Setup
+1. Copy `.env.example` to `.env`
+2. Add your Google Client ID and Secret from the downloaded JSON
+3. Run the auth setup script:
+```bash
+npm run setup-auth
+```
+
+### 4. Build and Run
+```bash
+npm run build
+npm start
+```
+
+## Using with AgenticFlow
+
+1. In AgenticFlow, go to MCP connections
+2. Add a new MCP server with the URL: `stdio://path/to/your/server`
+3. The server will be available with all Google services tools
+
+## Using with Claude Desktop
+
+Add this to your Claude Desktop MCP settings:
+
+```json
+{
+  "mcpServers": {
+    "google-services": {
+      "command": "node",
+      "args": ["/path/to/your/dist/index.js"],
+      "env": {
+        "GOOGLE_CLIENT_ID": "your_client_id",
+        "GOOGLE_CLIENT_SECRET": "your_client_secret",
+        "GOOGLE_ACCESS_TOKEN": "your_access_token",
+        "GOOGLE_REFRESH_TOKEN": "your_refresh_token"
+      }
+    }
+  }
+}
+```
+
+## Available Tools
+
+### Google Drive
+- `drive_create_folder` - Create folders
+- `drive_list_files` - List files with search
+- `drive_move_file` - Move files between folders
+- `drive_delete_file` - Delete files
+
+### Google Sheets
+- `sheets_create` - Create new spreadsheets
+- `sheets_read` - Read data from sheets
+- `sheets_write` - Write data to specific ranges
+- `sheets_append` - Append data to sheets
+
+### Google Slides
+- `slides_create` - Create presentations
+- `slides_add_slide` - Add new slides
+- `slides_add_text` - Add text boxes to slides
+- `slides_add_image` - Add images to slides
+
+### Google Docs
+- `docs_create` - Create new documents
+- `docs_read` - Read document content
+- `docs_write` - Insert text into documents
+- `docs_replace_text` - Find and replace text
+
+### Google Forms
+- `forms_create` - Create new forms
+- `forms_add_question` - Add questions to forms
+- `forms_get_responses` - Get form responses
+- `forms_get_form` - Get form structure
+
+## Authentication Flow
+
+The server uses OAuth 2.0 for authentication. On first run, it will:
+1. Open a browser window for Google OAuth
+2. Ask for permission to access your Google services
+3. Store the refresh token for future use
+
+## Troubleshooting
+
+- Make sure all required APIs are enabled in Google Cloud Console
+- Check that your OAuth redirect URI matches the one in your Google Cloud credentials
+- Verify environment variables are set correctly
+- For AgenticFlow, ensure the MCP server URL is correct

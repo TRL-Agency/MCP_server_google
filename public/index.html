@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Services MCP Server</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+        .endpoint { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .method { color: #007bff; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Google Services MCP Server</h1>
+    <p>Model Context Protocol server for Google Drive, Sheets, Slides, Docs, and Forms APIs.</p>
+    
+    <h2>API Endpoints</h2>
+    <div class="endpoint">
+        <span class="method">GET</span> <code>/</code> - This info page
+    </div>
+    <div class="endpoint">
+        <span class="method">GET</span> <code>/api/health</code> - Health check
+    </div>
+    <div class="endpoint">
+        <span class="method">POST</span> <code>/api/mcp</code> - MCP protocol endpoint
+    </div>
+    
+    <h2>Available Tools (20)</h2>
+    <h3>Google Drive (4 tools)</h3>
+    <ul>
+        <li>drive_create_folder - Create folders</li>
+        <li>drive_list_files - List and search files</li>
+        <li>drive_move_file - Move files between folders</li>
+        <li>drive_delete_file - Delete files</li>
+    </ul>
+    
+    <h3>Google Sheets (4 tools)</h3>
+    <ul>
+        <li>sheets_create - Create new spreadsheets</li>
+        <li>sheets_read - Read data from specific ranges</li>
+        <li>sheets_write - Write data to cells</li>
+        <li>sheets_append - Append data to sheets</li>
+    </ul>
+    
+    <h3>Google Slides (4 tools)</h3>
+    <ul>
+        <li>slides_create - Create presentations</li>
+        <li>slides_add_slide - Add new slides</li>
+        <li>slides_add_text - Add text boxes to slides</li>
+        <li>slides_add_image - Add images to slides</li>
+    </ul>
+    
+    <h3>Google Docs (4 tools)</h3>
+    <ul>
+        <li>docs_create - Create new documents</li>
+        <li>docs_read - Read document content</li>
+        <li>docs_write - Insert text into documents</li>
+        <li>docs_replace_text - Find and replace text</li>
+    </ul>
+    
+    <h3>Google Forms (4 tools)</h3>
+    <ul>
+        <li>forms_create - Create new forms</li>
+        <li>forms_add_question - Add questions to forms</li>
+        <li>forms_get_responses - Get form responses</li>
+        <li>forms_get_form - Get form structure</li>
+    </ul>
+    
+    <h2>Usage</h2>
+    <p><strong>With AgenticFlow:</strong> Use <code>https://your-app.vercel.app/api/mcp</code> as your MCP server URL.</p>
+    <p><strong>With Claude Desktop:</strong> Configure the API endpoint in your MCP settings.</p>
+    
+    <p><small>Created by TRL Agency for educational automation.</small></p>
+</body>
+</html>

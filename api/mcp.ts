@@ -55,6 +55,9 @@ class GoogleServicesMCPServer {
     const { method, params } = body;
 
     switch (method) {
+      case 'initialize':
+        return this.initialize(params);
+      
       case 'tools/list':
         return this.listTools();
       
@@ -64,6 +67,19 @@ class GoogleServicesMCPServer {
       default:
         throw new McpError(ErrorCode.MethodNotFound, `Unknown method: ${method}`);
     }
+  }
+
+  private async initialize(params: any) {
+    return {
+      protocolVersion: "2024-11-05",
+      capabilities: {
+        tools: {}
+      },
+      serverInfo: {
+        name: "Google Services MCP Server",
+        version: "0.1.0"
+      }
+    };
   }
 
   private async listTools() {

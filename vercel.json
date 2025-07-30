@@ -1,3 +1,21 @@
 {
-  "version": 2
+  "version": 2,
+  "functions": {
+    "api/mcp.ts": {
+      "headers": {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization"
+      }
+    }
+  },
+  "routes": [
+    {
+      "src": "/api/mcp",
+      "headers": {
+        "Cache-Control": "no-cache",
+        "Access-Control-Allow-Origin": "*"
+      }
+    }
+  ]
 }
